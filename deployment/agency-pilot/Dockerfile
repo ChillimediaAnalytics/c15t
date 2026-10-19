@@ -3,7 +3,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
-COPY server.mjs backup.mjs ./
+COPY server.mjs backup.mjs LICENSE.md NOTICE ./
 COPY public ./public
 RUN mkdir /data /backups && chown node:node /data /backups
 USER node
