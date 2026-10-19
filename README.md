@@ -1,3 +1,7 @@
+> **Chillimedia fork — Chilli Consent pilot**
+>
+> Our agency pilot and Oderland Cloud deployment live in [`deployment/agency-pilot`](deployment/agency-pilot). It uses the audited c15t **3.0.0** backend/browser packages, with a branded admin interface, site setup and consent records. The pilot is running privately on Oderland; public DNS/TLS activation is pending. Billing and automated scanning are not included yet. The upstream c15t project documentation follows below.
+
 <p align="center">
   <a href="https://c15t.com?utm_source=github&utm_medium=repo_homepage" target="_blank" rel="noopener noreferrer">
     <picture>

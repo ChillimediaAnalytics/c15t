@@ -1,0 +1,31 @@
+# Dedicated host only. Replace consent.chillimedia.se if another hostname is chosen.
+# Create its DNS record and obtain the certificate before enabling the TLS block.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name consent.chillimedia.se;
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+    location / { return 308 https://consent.chillimedia.se$request_uri; }
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name consent.chillimedia.se;
+    ssl_certificate /etc/letsencrypt/live/consent.chillimedia.se/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/consent.chillimedia.se/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    client_max_body_size 64k;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    location / {
+        proxy_pass http://127.0.0.1:3090;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        # Keep upstream no-store and Vary headers intact. Do not cache admin,
+        # policy initialization or consent records through the reverse proxy.
+        proxy_no_cache 1;
+        proxy_cache_bypass 1;
+    }
+}

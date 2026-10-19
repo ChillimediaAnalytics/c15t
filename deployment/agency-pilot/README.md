@@ -13,7 +13,7 @@ Use Docker and Compose on the existing host. DNS for `consent.chillimedia.se` mu
 3. `docker compose config --quiet`
 4. `PILOT_IMAGE=chilli-consent:<git-sha> docker compose build --pull app`
 5. `PILOT_IMAGE=chilli-consent:<git-sha> docker compose up -d --wait app`
-6. Proxy the dedicated HTTPS hostname to `http://127.0.0.1:3090`. Do not change the ChilliGPT stack, its networks, Mongo volumes or routes.
+6. Use the dedicated-host template in `nginx.conf.example`. Proxy the dedicated HTTPS hostname to `http://127.0.0.1:3090`. Do not change the ChilliGPT stack, its networks, Mongo volumes or routes.
 7. Check `/healthz`, authenticate at `/admin/`, create a pilot site, and test its preview. No customer site is changed automatically.
 
 Do not start paid client service until the exact client integration has passed pre-consent/rejection/acceptance/withdrawal checks and operational recovery has been exercised. Scripts that are not declared/gated by category are not magically made safe by installing the loader. The pilot uses an opt-in rule as the default for all visitors.
