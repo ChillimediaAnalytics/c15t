@@ -6,6 +6,10 @@ The pilot provides an authenticated admin overview, site creation, per-site inst
 
 ## Run on Oderland Cloud
 
+The agency pilot is deployed at **https://consent.chillimedia.se/admin/** as of 2026-10-19. Its A record points to the existing Oderland Cloud host, with a 300-second TTL. HTTPS uses Let's Encrypt; the initial certificate expires 2027-01-17. Certbot's renewal timer is enabled, and `/etc/letsencrypt/renewal-hooks/deploy/chilli-consent-nginx` validates and reloads nginx after this certificate renews. Recreate that hook when rebuilding the host.
+
+The server checkout is `/home/ubuntu/chilli-consent`; operator credentials and signing keys remain in the protected `deployment/agency-pilot/.env` on the server. They are intentionally absent from GitHub. Deployment currently uses manual Docker builds, not automatic deployment on push. No customer websites have been migrated.
+
 Use Docker and Compose on the existing host. DNS for `consent.chillimedia.se` must point to that host before obtaining HTTPS. The process binds only to host loopback port **3090** through Compose; it must sit behind the host HTTPS reverse proxy.
 
 1. Check out the `agency-pilot` branch from `ChillimediaAnalytics/c15t` on the server.
