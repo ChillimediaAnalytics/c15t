@@ -1,3 +1,26 @@
+## @c15t/integrations@3.2.0-canary.0 (canary)
+
+### Rewrite npm descriptions for search
+
+npm search scores a phrase in the description far above the same words in
+keywords or the README. Each package description now names the phrases
+people search for that package: "cookie banner", "cookie consent manager",
+"consent management platform" and "Google Consent Mode v2" on `c15t`,
+"React cookie banner" on `@c15t/react`, "Vue cookie consent" on `@c15t/vue`,
+and so on. `c15t` keeps "The open standard for cookie banners". Supporting
+packages describe their role in c15t instead of repeating the main
+package's phrases. Keyword lists are shorter. No code changes.
+
+### Send c15t consent to Shopify
+
+`@c15t/integrations/shopify` adds `createShopifyCustomerPrivacy`, a bridge that
+sends each c15t choice to Shopify's Customer Privacy API. Pass its `setup` to
+Hydrogen's `ShopifyScripts` with `consent: { mode: 'custom-banner' }`, and
+Hydrogen holds analytics events until the visitor has answered the c15t
+banner. Under an opt-out policy, Shopify applies its region defaults until the
+visitor saves a choice. See the
+[Shopify guide](https://c15t.com/docs/integrations/shopify).
+
 ## @c15t/integrations@3.1.0
 
 ### PostHog no longer starts after a refusal that lands mid-download

@@ -1,3 +1,46 @@
+## @c15t/core@3.2.0-canary.0 (canary)
+
+### Rewrite npm descriptions for search
+
+npm search scores a phrase in the description far above the same words in
+keywords or the README. Each package description now names the phrases
+people search for that package: "cookie banner", "cookie consent manager",
+"consent management platform" and "Google Consent Mode v2" on `c15t`,
+"React cookie banner" on `@c15t/react`, "Vue cookie consent" on `@c15t/vue`,
+and so on. `c15t` keeps "The open standard for cookie banners". Supporting
+packages describe their role in c15t instead of repeating the main
+package's phrases. Keyword lists are shorter. No code changes.
+
+### Export banner copy and button labels for headless UIs
+
+`resolvePromptCopy(translations, prompt)` returns the banner's title and
+description, and reads the notice copy when the prompt is a notice.
+`resolveActionLabels(translations)` labels each banner action, and
+`resolvePreferenceControlLabels(translations)` labels the opt-out and
+preferences buttons. All three use the active language and fall back to
+English for a missing key. Import them from `c15t`, `@c15t/svelte`,
+`@c15t/svelte/headless`, `c15t/vue/vue-plugin` or `@c15t/browser/headless`.
+`@c15t/browser/headless` also exports `resolveConsentPresentation` now.
+
+React adds `useBannerCopy()` and `useConsentLabels()` to
+`c15t/react/headless`, `c15t/next/headless` and
+`c15t/tanstack-start/headless`. They return the same strings the stock
+banner renders and update when the language changes. The same headless
+entries now export `useVendorsListedUnder(category)`, which returns the
+vendors the stock dialog lists under a category.
+
+When a notice offers only a dismiss button, `primaryActions` from
+`resolveConsentPresentation` now contains `dismiss`, so a headless banner can
+style it as the primary button. The browser banner now styles that button as
+primary too. The React, Vue and Svelte banners already did.
+
+### Keep a dialog open when consent init resolves
+
+A preference center opened before the consent backend answered closed when
+the answer arrived, for example when a visitor clicked a consent gate's
+button right after the page loaded. The dialog now stays open until the
+visitor saves or closes it.
+
 ## @c15t/core@3.1.0
 
 ### Get the provider's event dispatcher in every framework
