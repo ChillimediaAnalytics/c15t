@@ -23,6 +23,12 @@ const equal = (a, b) => { const x = crypto.createHash('sha256').update(a).digest
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 const siteFor = (id) => registry.prepare('SELECT * FROM sites WHERE id=?').get(id);
 const derive = (id, purpose) => crypto.createHmac('sha256', secret).update(`${purpose}:${id}`).digest('hex');
+const sessions = new Map();
+const secureCookie = origin.startsWith('https://');
+const cookieName = secureCookie ? '__Host-chilli_session' : 'chilli_session';
+const cookie = (value, age) => `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secureCookie ? '; Secure' : ''}`;
+const redirect = (location) => new Response(null, {status:303,headers:{Location:location,'Cache-Control':'no-store'}});
+const loginPage = async (failed=false) => new Response((await fs.readFile(path.join(here,'public/login.html'),'utf8')).replace('<!--ERROR-->',failed?'<p role="alert">Fel användarnamn eller lösenord. Försök igen.</p>':''),{status:failed?401:200,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}});
 
 async function backend(site) {
   if (instances.has(site.id)) return instances.get(site.id);
@@ -46,6 +52,13 @@ async function backend(site) {
   try { return await pending; } finally { initializing.delete(site.id); }
 }
 function authorized(req) {
+  const token = (req.headers.cookie || '').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookieName+'='))?.slice(cookieName.length+1);
+  if(token && /^[a-f0-9]{64}$/.test(token)) {
+    const key=crypto.createHash('sha256').update(token).digest('hex');
+    const expires=sessions.get(key);
+    if(expires>Date.now()) return true;
+    sessions.delete(key);
+  }
   const header = req.headers.authorization || '';
   if (!header.startsWith('Basic ')) return false;
   const decoded = Buffer.from(header.slice(6), 'base64').toString();
@@ -58,11 +71,12 @@ async function bodyOf(req) {
   return Buffer.concat(parts);
 }
 const buckets = new Map();
-const sweep = setInterval(() => { const now=Date.now(); for (const [key,b] of buckets) if (b.until < now) buckets.delete(key); }, 60000); sweep.unref();
+const sweep = setInterval(() => { const now=Date.now(); for (const [key,b] of buckets) if (b.until < now) buckets.delete(key); for(const [key,expires] of sessions) if(expires<now) sessions.delete(key); }, 60000); sweep.unref();
 function rateLimited(req, url) {
-  const key=(req.headers['x-real-ip'] || req.socket.remoteAddress || '') + (url.startsWith('/admin') ? ':admin' : ':public');
+  const login=url==='/admin/login' && req.method==='POST';
+  const key=(req.headers['x-real-ip'] || req.socket.remoteAddress || '') + (login ? ':login' : url.startsWith('/admin') ? ':admin' : ':public');
   let b=buckets.get(key); if (!b || b.until < Date.now()) { if(buckets.size > 10000) return true; b={count:0,until:Date.now()+60000}; buckets.set(key,b); }
-  return ++b.count > (url.startsWith('/admin') ? 120 : 600);
+  return ++b.count > (login ? 10 : url.startsWith('/admin') ? 120 : 600);
 }
 const server = http.createServer({ maxHeaderSize: 16384, requestTimeout: 15000 }, async (req, res) => {
   let response;
@@ -70,9 +84,23 @@ const server = http.createServer({ maxHeaderSize: 16384, requestTimeout: 15000 }
     const url = new URL(req.url || '/', origin);
     if (rateLimited(req,url.pathname)) response=json({error:'Too many requests'},429);
     else if (url.pathname === '/healthz') {registry.prepare('SELECT 1').get(); response=json({status:'ok',service:'Chilli Consent pilot'});}
+    else if (url.pathname === '/robots.txt') response=new Response('User-agent: *\nDisallow: /admin/\nDisallow: /demo/\n',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'}});
     else if (url.pathname === '/') response=new Response(null,{status:302,headers:{Location:'/admin/'}});
     else if (url.pathname.startsWith('/admin')) {
-      if (!authorized(req)) response=new Response('Sign in to Chilli Consent',{status:401,headers:{'WWW-Authenticate':'Basic realm="Chilli Consent", charset="UTF-8"','Cache-Control':'no-store'}});
+      if (url.pathname==='/admin/login' && req.method==='GET') response=authorized(req)?redirect('/admin/'):await loginPage();
+      else if (url.pathname==='/admin/login' && req.method==='POST') {
+        if(req.headers.origin!==origin || !req.headers['content-type']?.startsWith('application/x-www-form-urlencoded')) response=json({error:'Invalid login request'},403);
+        else {
+          const form=new URLSearchParams((await bodyOf(req)).toString());
+          if(!equal(form.get('username')||'',process.env.ADMIN_USERNAME||'admin') || !equal(form.get('password')||'',password)) response=await loginPage(true);
+          else if(sessions.size>=100) response=json({error:'Session limit reached'},503);
+          else {const token=crypto.randomBytes(32).toString('hex');sessions.set(crypto.createHash('sha256').update(token).digest('hex'),Date.now()+8*60*60*1000);response=redirect('/admin/');response.headers.set('Set-Cookie',cookie(token,8*60*60));}
+        }
+      } else if (url.pathname==='/admin/logout' && req.method==='POST') {
+        if(req.headers.origin!==origin) response=json({error:'Invalid request origin'},403);
+        else {const token=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(cookieName+'='))?.slice(cookieName.length+1);if(token)sessions.delete(crypto.createHash('sha256').update(token).digest('hex'));response=redirect('/admin/login');response.headers.set('Set-Cookie',cookie('',0));}
+      } else if (req.method==='GET' && url.pathname==='/admin/styles.css') response=new Response(await fs.readFile(path.join(here,'public/styles.css')),{headers:{'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-store'}});
+      else if (!authorized(req)) response=url.pathname.startsWith('/admin/api/')?json({error:'Sign in required'},401):redirect('/admin/login');
       else if (req.method === 'GET' && url.pathname === '/admin/api/sites') {
         const rows=registry.prepare('SELECT * FROM sites ORDER BY created_at DESC').all().map(site=>{
           const filename=path.join(dir,site.id+'.sqlite');let total=0;let latest=[];
@@ -96,7 +124,7 @@ const server = http.createServer({ maxHeaderSize: 16384, requestTimeout: 15000 }
       else if (req.method==='GET' && ['/admin/admin.js','/admin/styles.css'].includes(url.pathname)) response=new Response(await fs.readFile(path.join(here,'public',url.pathname.split('/').pop())),{headers:{'Content-Type':url.pathname.endsWith('.js')?'text/javascript; charset=utf-8':'text/css; charset=utf-8','Cache-Control':'no-store'}});
       else response=json({error:'Not found'},404);
     } else if (url.pathname.startsWith('/demo/')) {
-      if(!authorized(req)) response=new Response('Sign in',{status:401,headers:{'WWW-Authenticate':'Basic realm="Chilli Consent"'}});
+      if(!authorized(req)) response=redirect('/admin/login');
       else {const id=url.pathname.slice(6);const site=siteFor(id);if(!site)response=json({error:'Not found'},404);else response=new Response(`<!doctype html><html lang="sv"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Chilli Consent — förhandsvisning</title><script src="/sites/${site.id}/c15t.js" defer></script><style>body{font:18px/1.6 system-ui;background:#faf6ef;color:#241f1b;padding:10vw;max-width:780px}h1{font-size:clamp(36px,7vw,72px);line-height:1.05}a{color:#b93820}</style><p>CHILLI CONSENT / PILOT</p><h1>Ditt val.<br>Din integritet.</h1><p>En testmiljö för samtycke. Ingen extern spårning används här. Testskriptet aktiveras först när du godkänner analys.</p><p><a href="#c15t-preferences">Ändra integritetsinställningar</a> · <a href="/admin/">Till administrationen</a></p><script type="text/plain" data-c15t-category="measurement" src="/fixture-analytics.js"></script></html>`,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}});}
     } else if(url.pathname==='/fixture-analytics.js') response=new Response('window.chilliDemoAnalytics=true;',{headers:{'Content-Type':'text/javascript'}});
     else {

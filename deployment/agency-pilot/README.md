@@ -10,6 +10,10 @@ The agency pilot is deployed at **https://consent.chillimedia.se/admin/** as of 
 
 The server checkout is `/home/ubuntu/chilli-consent`; operator credentials and signing keys remain in the protected `deployment/agency-pilot/.env` on the server. They are intentionally absent from GitHub. Deployment currently uses manual Docker builds, not automatic deployment on push. No customer websites have been migrated.
 
+Browser users sign in through `/admin/login`, avoiding native HTTP authentication dialogs. Production sessions use a random token in a Secure, HttpOnly, SameSite=Strict host-only cookie, expire after eight hours, and are revoked on logout or server restart. Existing Basic authentication remains available for operator API checks. Login and logout validate the request origin; login attempts have a separate rate limit.
+
+Every service response carries `X-Robots-Tag: noindex, nofollow`; login and dashboard HTML also include robots meta tags. `robots.txt` excludes the private admin and demo paths while public paths remain crawlable so search engines can read their noindex headers. The nginx rules apply only to `consent.chillimedia.se`; no indexing policy for the main `chillimedia.se` website is changed.
+
 Use Docker and Compose on the existing host. DNS for `consent.chillimedia.se` must point to that host before obtaining HTTPS. The process binds only to host loopback port **3090** through Compose; it must sit behind the host HTTPS reverse proxy.
 
 1. Check out the `agency-pilot` branch from `ChillimediaAnalytics/c15t` on the server.

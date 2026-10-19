@@ -4,6 +4,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name consent.chillimedia.se;
+    add_header X-Robots-Tag "noindex, nofollow" always;
     location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
     location / { return 308 https://consent.chillimedia.se$request_uri; }
 }
