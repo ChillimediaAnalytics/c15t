@@ -25,6 +25,7 @@ try{
  await test('site creation rejects hostile origin',async()=>assert.equal((await request('/admin/api/sites',{method:'POST',headers:{Origin:'https://hostile.example','Content-Type':'application/json','X-CSRF-Token':state.csrf},body:JSON.stringify({name:'Probe',origins:['https://example.com']})})).status,403));
  const create=async(name,origins)=>request('/admin/api/sites',{method:'POST',headers:{Origin:base,'Content-Type':'application/json','X-CSRF-Token':state.csrf},body:JSON.stringify({name,origins})});
  await test('wildcard origins are rejected',async()=>assert.equal((await create('Bad',['https://*.example.com'])).status,422));
+ await test('malformed origins are rejected as input errors',async()=>assert.equal((await create('Bad',['not-a-url'])).status,422));
  const created=await create('<script>test</script>',['https://example.com']);
  await test('site creates its own backend',()=>assert.equal(created.status,201,log));
  const {id}=await created.json();

@@ -84,7 +84,7 @@ const server = http.createServer({ maxHeaderSize: 16384, requestTimeout: 15000 }
         else {
           const input=JSON.parse((await bodyOf(req)).toString());const name=String(input.name||'').trim();
           if(!name || name.length>100 || !Array.isArray(input.origins) || input.origins.length<1 || input.origins.length>10) throw Object.assign(new Error('Provide a site name and 1–10 origins'),{status:422});
-          const origins=[...new Set(input.origins.map(x=>{const u=new URL(x);if(u.hostname.includes('*') || u.origin!==x || u.username || u.password || (u.protocol!=='https:' && !(process.env.NODE_ENV!=='production' && u.protocol==='http:' && ['localhost','127.0.0.1'].includes(u.hostname)))) throw Object.assign(new Error('Origins must be exact HTTPS origins, without paths'),{status:422});return u.origin;}))];
+          const origins=[...new Set(input.origins.map(x=>{let u;try{u=new URL(x);}catch{throw Object.assign(new Error('Provide a valid HTTPS origin'),{status:422});}if(u.hostname.includes('*') || u.origin!==x || u.username || u.password || (u.protocol!=='https:' && !(process.env.NODE_ENV!=='production' && u.protocol==='http:' && ['localhost','127.0.0.1'].includes(u.hostname)))) throw Object.assign(new Error('Origins must be exact HTTPS origins, without paths'),{status:422});return u.origin;}))];
           if(registry.prepare('SELECT count(*) AS n FROM sites').get().n>=100) throw Object.assign(new Error('Pilot site limit reached'),{status:422});
           const site={id:crypto.randomUUID(),name,origins:JSON.stringify(origins),created_at:new Date().toISOString()};
           // Include this service's own origin for the protected preview page.
