@@ -1,0 +1,27 @@
+name: chilli-consent
+services:
+  app:
+    image: ${PILOT_IMAGE:-chilli-consent:pilot}
+    build: .
+    init: true
+    env_file: .env
+    ports:
+      - "127.0.0.1:3090:3090"
+    volumes:
+      - consent-data:/data
+      - consent-backups:/backups
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 120
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+volumes:
+  consent-data:
+  consent-backups:

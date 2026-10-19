@@ -1,0 +1,10 @@
+{
+  "name": "chilli-consent-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs", "check": "node --check server.mjs && node --check public/admin.js" },
+  "engines": { "node": ">=24.0.0 <25" },
+  "dependencies": { "@c15t/backend": "3.0.0", "@c15t/browser": "3.0.0", "@effect/sql-sqlite-node": "4.0.0" }
+}
